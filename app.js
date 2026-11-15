@@ -1,7 +1,14 @@
-const KEY = "docutrack.items.v1";
+/* ===== Konfigurasi Supabase (kunci publishable memang aman berada di kode) ===== */
+const SUPABASE_URL = "https://mvhdzlcwwvgmlnmtqdhs.supabase.co";
+const SUPABASE_KEY = "sb_publishable_yScH9FUHlc6_ycQwX8cTRw_9LefPz90";
+const BUCKET = "documents";
+const sb = window.supabase ? window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY) : null;
+
 const $ = (id) => document.getElementById(id);
 const DAY = 86400000;
-let items = load();
+let items = [];
+let me = null;           // { id, email, name, role }
+let people = {};         // id -> nama pemilik dokumen
 const SKEY = "docutrack.settings.v1", NKEY = "docutrack.notified.v1";
 let settings = (() => {
   try { return { notify: false, days: [30, 7, 1], ...JSON.parse(localStorage.getItem(SKEY)) }; }
@@ -10,25 +17,9 @@ let settings = (() => {
 const PROC = [["todo", "Belum diurus"], ["doing", "Sedang diproses"], ["done", "Selesai"]];
 let view = "list";
 let calY = new Date().getFullYear(), calM = new Date().getMonth();
+const isAdmin = () => me?.role === "admin";
+const canEdit = (it) => !!me && (isAdmin() || it.owner === me.id);
 
-function load() {
-  try {
-    const raw = localStorage.getItem(KEY);
-    if (raw) return JSON.parse(raw);
-  } catch (e) {}
-  return seed();
-}
-function save() {
-  try { localStorage.setItem(KEY, JSON.stringify(items)); } catch (e) { toast("Gagal menyimpan ke browser"); }
-}
-function seed() {
-  const d = (n) => new Date(Date.now() + n * DAY).toISOString().slice(0, 10);
-  return [
-    { id: uid(), name: "Paspor", cat: "Identitas", no: "X1234567", issuer: "Imigrasi", issue: d(-3000), expiry: d(640), remind: 90, note: "", added: Date.now() },
-    { id: uid(), name: "SIM A", cat: "Kendaraan", no: "", issuer: "Polri", issue: d(-1700), expiry: d(18), remind: 30, note: "Perpanjang lewat aplikasi Digital Korlantas", added: Date.now() - 1 },
-    { id: uid(), name: "Lisensi Software Desain", cat: "Perangkat lunak", no: "", issuer: "Vendor", issue: d(-380), expiry: d(-6), remind: 14, note: "", added: Date.now() - 2 },
-  ];
-}
 function uid() { return Math.random().toString(36).slice(2, 10); }
 
 function today() { const t = new Date(); t.setHours(0, 0, 0, 0); return t; }
@@ -78,8 +69,8 @@ function render() {
     (!q || [it.name, it.no, it.issuer].join(" ").toLowerCase().includes(q)));
   list.sort((a, b) =>
     sort === "name" ? a.name.localeCompare(b.name) :
-    sort === "added" ? b.added - a.added :
-    parse(a.expiry) - parse(b.expiry));
+      sort === "added" ? b.added - a.added :
+        parse(a.expiry) - parse(b.expiry));
 
   renderCalendar(list);
   $("list").hidden = view !== "list";
@@ -91,6 +82,7 @@ function render() {
         <div>
           <h3>${esc(it.name)}</h3>
           <div class="meta">${esc(it.cat)}${it.no ? " • " + esc(it.no) : ""}${it.issuer ? " • " + esc(it.issuer) : ""}</div>
+          <div class="meta owner">Ditambahkan oleh ${esc(people[it.owner] || "pengguna lain")}${it.owner === me?.id ? " (Anda)" : ""}</div>
         </div>
         <span class="badge">${label(it)}</span>
       </div>
@@ -98,16 +90,17 @@ function render() {
       <div class="dates"><span>${it.issue ? "Terbit " + fmt(it.issue) : "&nbsp;"}</span><span>Berakhir ${fmt(it.expiry)}</span></div>
       ${it.note ? `<div class="note">${esc(it.note)}</div>` : ""}
       <div class="card-actions">
-        ${st !== "active" || (it.proc || "todo") !== "todo" ? `<select class="proc ${it.proc || "todo"}" data-proc="${it.id}" aria-label="Status proses ${esc(it.name)}">${PROC.map(([v, l]) => `<option value="${v}"${(it.proc || "todo") === v ? " selected" : ""}>${l}</option>`).join("")}</select>` : ""}
+        ${st !== "active" || (it.proc || "todo") !== "todo" ? `<select class="proc ${it.proc || "todo"}" data-proc="${it.id}"${canEdit(it) ? "" : " disabled"} aria-label="Status proses ${esc(it.name)}">${PROC.map(([v, l]) => `<option value="${v}"${(it.proc || "todo") === v ? " selected" : ""}>${l}</option>`).join("")}</select>` : ""}
         ${it.fileId ? `<button class="btn ghost small" data-view="${it.id}" type="button">Lihat dokumen</button>` : ""}
-        <button class="btn ghost small" data-edit="${it.id}" type="button">Ubah</button>
-        <button class="btn danger small" data-del="${it.id}" type="button">Hapus</button>
+        ${canEdit(it) ? `<button class="btn ghost small" data-edit="${it.id}" type="button">Ubah</button>
+        <button class="btn danger small" data-del="${it.id}" type="button">Hapus</button>` : ""}
       </div>
     </article>`;
-  }).join("") : `<div class="empty">${items.length ? "Tidak ada dokumen yang cocok dengan filter." : "Belum ada dokumen. Klik “Tambah dokumen” untuk mulai melacak."}</div>`;
+  }).join("") : `<div class="empty">${items.length ? "Tidak ada dokumen yang cocok dengan filter." : "Belum ada dokumen. Klik “+ Tambah dokumen” untuk mulai, atau impor dari ZIP cadangan lama lewat tombol Impor."}</div>`;
 }
 
 function openForm(it) {
+  if (it && !canEdit(it)) { toast("Dokumen ini milik " + (people[it.owner] || "pengguna lain") + ", hanya bisa dilihat."); return; }
   $("dlgTitle").textContent = it ? "Ubah dokumen" : "Tambah dokumen";
   $("fId").value = it?.id || "";
   $("fName").value = it?.name || "";
@@ -127,44 +120,50 @@ function openForm(it) {
 
 $("form").addEventListener("submit", async (e) => {
   if (scanning) { e.preventDefault(); toast("Tunggu pemindaian selesai"); return; }
-  const data = {
+  const row = {
     name: $("fName").value.trim(), cat: $("fCat").value, no: $("fNo").value.trim(),
-    issuer: $("fIssuer").value.trim(), issue: $("fIssue").value, expiry: $("fExpiry").value,
+    issuer: $("fIssuer").value.trim(), issue: $("fIssue").value || null, expiry: $("fExpiry").value,
     remind: Number($("fRemind").value) || 30, note: $("fNote").value.trim(), proc: $("fProc").value,
   };
   const id = $("fId").value;
   const old = id ? items.find((i) => i.id === id) : null;
-  if (pending) {
-    try {
-      const fileId = uid();
-      await putFile(fileId, { blob: pending.file, text: pending.text });
-      if (old?.fileId) await delFile(old.fileId);
-      Object.assign(data, { fileId, fileName: pending.file.name, fileType: pending.file.type, dates: pending.dates });
-    } catch (err) { toast("Berkas gagal disimpan"); }
+  try {
+    if (pending) {
+      const path = `${old?.owner || me.id}/${uid()}_${safeName(pending.file.name)}`;
+      const up = await sb.storage.from(BUCKET).upload(path, pending.file, { contentType: pending.file.type || "application/octet-stream" });
+      if (up.error) throw up.error;
+      Object.assign(row, { file_path: path, file_name: pending.file.name, file_type: pending.file.type, dates: pending.dates, ocr_text: pending.text });
+      if (old?.fileId) await sb.storage.from(BUCKET).remove([old.fileId]);
+    }
+    const res = id ? await sb.from("documents").update(row).eq("id", id) : await sb.from("documents").insert(row);
+    if (res.error) throw res.error;
     pending = null;
-  }
-  if (id) { items = items.map((i) => (i.id === id ? { ...i, ...data } : i)); toast("Perubahan disimpan"); }
-  else { items.push({ id: uid(), added: Date.now(), ...data }); toast("Dokumen ditambahkan"); }
-  save(); render();
+    toast(id ? "Perubahan disimpan" : "Dokumen ditambahkan");
+    await loadAll();
+  } catch (err) { console.error(err); toast("Gagal menyimpan: " + (err.message || err)); }
 });
 
 $("list").addEventListener("click", async (e) => {
   const ed = e.target.closest("[data-edit]"), del = e.target.closest("[data-del]"), vw = e.target.closest("[data-view]");
   if (ed) openForm(items.find((i) => i.id === ed.dataset.edit));
   if (vw) openViewer(vw.dataset.view);
-  if (del && confirm("Hapus dokumen ini?")) {
+  if (del && confirm("Hapus dokumen ini untuk semua pengguna?")) {
     const it = items.find((i) => i.id === del.dataset.del);
-    if (it?.fileId) { try { await delFile(it.fileId); } catch (err) {} }
-    items = items.filter((i) => i.id !== del.dataset.del);
-    save(); render(); toast("Dokumen dihapus");
+    try {
+      const r = await sb.from("documents").delete().eq("id", it.id);
+      if (r.error) throw r.error;
+      if (it.fileId) await sb.storage.from(BUCKET).remove([it.fileId]);
+      toast("Dokumen dihapus"); await loadAll();
+    } catch (err) { toast("Gagal menghapus: " + (err.message || err)); }
   }
 });
 
-$("list").addEventListener("change", (e) => {
+$("list").addEventListener("change", async (e) => {
   const s = e.target.closest("[data-proc]");
   if (!s) return;
-  items = items.map((i) => (i.id === s.dataset.proc ? { ...i, proc: s.value } : i));
-  save(); render(); toast("Status proses diperbarui");
+  const r = await sb.from("documents").update({ proc: s.value }).eq("id", s.dataset.proc);
+  if (r.error) toast("Gagal memperbarui: " + r.error.message); else toast("Status proses diperbarui");
+  await loadAll();
 });
 $("addBtn").onclick = () => openForm();
 $("cancelBtn").onclick = () => $("dlg").close();
@@ -183,25 +182,6 @@ const dropEl = document.querySelector(".drop");
 const PDF_WORKER = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
 if (window.pdfjsLib) pdfjsLib.GlobalWorkerOptions.workerSrc = PDF_WORKER;
 
-// Penyimpanan berkas (IndexedDB, karena localStorage terlalu kecil untuk file)
-const dbp = new Promise((res, rej) => {
-  const r = indexedDB.open("docutrack", 1);
-  r.onupgradeneeded = () => r.result.createObjectStore("files");
-  r.onsuccess = () => res(r.result);
-  r.onerror = () => rej(r.error);
-});
-function idb(mode, fn) {
-  return dbp.then((d) => new Promise((res, rej) => {
-    const tx = d.transaction("files", mode);
-    const req = fn(tx.objectStore("files"));
-    tx.oncomplete = () => res(req.result);
-    tx.onerror = () => rej(tx.error);
-  }));
-}
-const putFile = (id, rec) => idb("readwrite", (s) => s.put(rec, id));
-const getFile = (id) => idb("readonly", (s) => s.get(id));
-const delFile = (id) => idb("readwrite", (s) => s.delete(id));
-
 function setStatus(msg, err) {
   $("scanStatus").textContent = msg;
   $("scanStatus").className = "meta" + (err ? " err" : "");
@@ -211,7 +191,7 @@ $("pickBtn").onclick = () => $("fFile").click();
 $("fFile").addEventListener("change", () => {
   const f = $("fFile").files[0];
   if (!f) return;
-  if (f.size > 15 * 1024 * 1024) { setStatus("Ukuran berkas maksimal 15 MB.", true); return; }
+  if (f.size > 10 * 1024 * 1024) { setStatus("Ukuran berkas maksimal 10 MB.", true); return; }
   scanFile(f);
 });
 
@@ -267,7 +247,7 @@ async function readPdf(file) {
 }
 
 // ---------- Ekstraksi data dari teks ----------
-const MONTHS = { jan:1, januari:1, january:1, feb:2, februari:2, pebruari:2, february:2, mar:3, maret:3, march:3, apr:4, april:4, mei:5, may:5, jun:6, juni:6, june:6, jul:7, juli:7, july:7, agu:8, agt:8, agus:8, agustus:8, aug:8, august:8, sep:9, sept:9, september:9, okt:10, oct:10, oktober:10, october:10, nov:11, nop:11, november:11, des:12, dec:12, desember:12, december:12 };
+const MONTHS = { jan: 1, januari: 1, january: 1, feb: 2, februari: 2, pebruari: 2, february: 2, mar: 3, maret: 3, march: 3, apr: 4, april: 4, mei: 5, may: 5, jun: 6, juni: 6, june: 6, jul: 7, juli: 7, july: 7, agu: 8, agt: 8, agus: 8, agustus: 8, aug: 8, august: 8, sep: 9, sept: 9, september: 9, okt: 10, oct: 10, oktober: 10, october: 10, nov: 11, nop: 11, november: 11, des: 12, dec: 12, desember: 12, december: 12 };
 const EXP = /berlaku|hingga|sampai|s\/d|expir|valid|until|kedaluwarsa|kadaluarsa|berakhir|\bexp\b|masa/;
 const ISS = /terbit|issue|dikeluarkan|dibuat|diterbitkan/;
 const BIRTH = /lahir|birth|\bdob\b/;
@@ -354,10 +334,9 @@ $("dateChips").addEventListener("click", (e) => {
 // ---------- Penampil dokumen ----------
 async function openViewer(id) {
   const it = items.find((i) => i.id === id);
-  let rec;
-  try { rec = await getFile(it.fileId); } catch (e) {}
-  if (!rec) { toast("Berkas tidak ditemukan di browser ini"); return; }
-  viewerUrl = URL.createObjectURL(rec.blob);
+  const { data, error } = await sb.storage.from(BUCKET).createSignedUrl(it.fileId, 3600);
+  if (error || !data) { toast("Berkas tidak dapat dibuka: " + (error?.message || "tidak ditemukan")); return; }
+  viewerUrl = data.signedUrl;
   $("vTitle").textContent = it.name;
   $("vDoc").innerHTML = it.fileType === "application/pdf"
     ? `<iframe src="${viewerUrl}" title="Dokumen"></iframe>`
@@ -369,13 +348,13 @@ async function openViewer(id) {
   $("vDates").innerHTML = ds.length
     ? ds.map((d) => `<li class="${d.type}"><span>${L[d.type]}${d.guess ? " <small>(perkiraan)</small>" : ""}</span><b>${fmt(d.iso)}</b></li>`).join("")
     : "<li>Tidak ada tanggal terdeteksi.</li>";
-  let html = esc(rec.text || "(tidak ada teks terbaca)");
+  let html = esc(it.ocrText || "(tidak ada teks terbaca)");
   ds.forEach((d) => { html = html.split(esc(d.raw)).join(`<mark>${esc(d.raw)}</mark>`); });
   $("vText").innerHTML = html;
   $("viewer").showModal();
 }
 $("vClose").onclick = () => $("viewer").close();
-$("viewer").addEventListener("close", () => { URL.revokeObjectURL(viewerUrl); $("vDoc").innerHTML = ""; });
+$("viewer").addEventListener("close", () => { viewerUrl = ""; $("vDoc").innerHTML = ""; });
 
 
 /* ================= Pengingat, kalender, cadangan ================= */
@@ -472,12 +451,12 @@ function exportIcs() {
 }
 
 // ---- Notifikasi browser ----
-function saveSettings() { try { localStorage.setItem(SKEY, JSON.stringify(settings)); } catch (e) {} }
+function saveSettings() { try { localStorage.setItem(SKEY, JSON.stringify(settings)); } catch (e) { } }
 function remInfo() {
   $("remInfo").textContent = !("Notification" in window) ? "Browser ini tidak mendukung notifikasi."
     : Notification.permission === "denied" ? "Notifikasi diblokir di pengaturan browser. Izinkan dulu lewat ikon gembok di address bar."
-    : Notification.permission === "granted" ? "Izin notifikasi sudah aktif."
-    : "Izin notifikasi belum diberikan.";
+      : Notification.permission === "granted" ? "Izin notifikasi sudah aktif."
+        : "Izin notifikasi belum diberikan.";
 }
 $("remBtn").onclick = () => {
   $("remOn").checked = settings.notify;
@@ -502,7 +481,7 @@ $("remTest").onclick = () => {
 function checkReminders() {
   if (!settings.notify || !("Notification" in window) || Notification.permission !== "granted" || !settings.days.length) return;
   let seen = {};
-  try { seen = JSON.parse(localStorage.getItem(NKEY)) || {}; } catch (e) {}
+  try { seen = JSON.parse(localStorage.getItem(NKEY)) || {}; } catch (e) { }
   const ths = [...settings.days].sort((a, b) => a - b);
   const due = [];
   items.forEach((it) => {
@@ -512,24 +491,28 @@ function checkReminders() {
     if (band === undefined) return;
     if (seen[k] === undefined || band < seen[k]) { seen[k] = band; due.push(it); }
   });
-  try { localStorage.setItem(NKEY, JSON.stringify(seen)); } catch (e) {}
+  try { localStorage.setItem(NKEY, JSON.stringify(seen)); } catch (e) { }
   if (!due.length) return;
   if (document.documentElement.classList.contains("locked")) { notify(`${due.length} dokumen perlu perhatian. Buka DocuTrack untuk melihat.`); return; }
   notify(due.length === 1 ? `${due[0].name}: ${label(due[0]).toLowerCase()}`
     : `${due.length} dokumen perlu perhatian: ${due.slice(0, 3).map((i) => i.name).join(", ")}${due.length > 3 ? ", …" : ""}`);
 }
 
-// ---- Cadangan & pemulihan (ZIP berisi data + berkas) ----
+// ---- Cadangan (unduh ZIP) & impor (dari ZIP lama atau cadangan) ----
 $("backupBtn").onclick = async () => {
   if (!window.JSZip) { toast("JSZip gagal dimuat, cek koneksi internet"); return; }
   try {
-    const zip = new JSZip(), texts = {};
+    toast("Menyiapkan cadangan…");
+    const zip = new JSZip(), texts = {}, out = [];
     for (const it of items) {
-      if (!it.fileId) continue;
-      const rec = await getFile(it.fileId);
-      if (rec) { zip.file(`files/${it.fileId}`, rec.blob); texts[it.fileId] = rec.text || ""; }
+      const rec = { id: it.id, name: it.name, cat: it.cat, no: it.no, issuer: it.issuer, issue: it.issue, expiry: it.expiry, remind: it.remind, note: it.note, proc: it.proc, fileName: it.fileName, fileType: it.fileType, dates: it.dates };
+      if (it.fileId) {
+        const d = await sb.storage.from(BUCKET).download(it.fileId);
+        if (!d.error) { rec.fileId = it.id; zip.file(`files/${it.id}`, d.data); texts[it.id] = it.ocrText || ""; }
+      }
+      out.push(rec);
     }
-    zip.file("docutrack.json", JSON.stringify({ app: "DocuTrack", version: 2, exported: new Date().toISOString(), items, texts, settings }, null, 2));
+    zip.file("docutrack.json", JSON.stringify({ app: "DocuTrack", version: 3, exported: new Date().toISOString(), items: out, texts }, null, 2));
     download(await zip.generateAsync({ type: "blob" }), `docutrack-backup-${new Date().toISOString().slice(0, 10)}.zip`);
     toast("Cadangan diunduh");
   } catch (e) { toast("Gagal membuat cadangan: " + e.message); }
@@ -542,133 +525,113 @@ $("restoreFile").addEventListener("change", async () => {
   try {
     let zip = null, data;
     if (/\.json$/i.test(f.name)) data = JSON.parse(await f.text());
-    else {
-      zip = await JSZip.loadAsync(f);
-      data = JSON.parse(await zip.file("docutrack.json").async("string"));
-    }
+    else { zip = await JSZip.loadAsync(f); data = JSON.parse(await zip.file("docutrack.json").async("string")); }
     const list = Array.isArray(data) ? data : data.items;
     if (!Array.isArray(list)) throw new Error("format file tidak dikenali");
-    if (!confirm(`Pulihkan ${list.length} dokumen? Dokumen dengan ID yang sama akan ditimpa.`)) return;
-    let n = 0;
+    if (!confirm(`Impor ${list.length} dokumen sebagai milik Anda? Dokumen yang sudah ada (nama, nomor, dan tanggal sama) dilewati.`)) return;
+    let added = 0, skipped = 0;
     for (const it of list) {
-      if (!it.id || !it.name || !it.expiry) continue;
+      if (!it.name || !it.expiry) continue;
+      if (items.some((x) => x.name === it.name && x.expiry === it.expiry && (x.no || "") === (it.no || ""))) { skipped++; continue; }
+      const row = { name: it.name, cat: it.cat || "Lainnya", no: it.no || "", issuer: it.issuer || "", issue: it.issue || null, expiry: it.expiry, remind: it.remind || 30, note: it.note || "", proc: it.proc || "todo", dates: it.dates || [] };
       const entry = zip && it.fileId ? zip.file(`files/${it.fileId}`) : null;
       if (entry) {
-        const b = await entry.async("blob");
-        await putFile(it.fileId, { blob: new Blob([b], { type: it.fileType || "" }), text: data.texts?.[it.fileId] || "" });
-      } else { delete it.fileId; delete it.fileName; delete it.fileType; }
-      const i = items.findIndex((x) => x.id === it.id);
-      if (i >= 0) items[i] = it; else items.push(it);
-      n++;
+        const blob = new Blob([await entry.async("blob")], { type: it.fileType || "application/octet-stream" });
+        const path = `${me.id}/${uid()}_${safeName(it.fileName || "dokumen")}`;
+        const up = await sb.storage.from(BUCKET).upload(path, blob, { contentType: it.fileType || "application/octet-stream" });
+        if (!up.error) Object.assign(row, { file_path: path, file_name: it.fileName, file_type: it.fileType, ocr_text: data.texts?.[it.fileId] || "" });
+      }
+      const r = await sb.from("documents").insert(row);
+      if (r.error) throw r.error;
+      added++;
     }
-    save(); render();
-    toast(`${n} dokumen dipulihkan`);
-  } catch (e) { toast("Gagal memulihkan: " + e.message); }
+    await loadAll();
+    toast(`${added} dokumen diimpor${skipped ? `, ${skipped} dilewati (sudah ada)` : ""}`);
+  } catch (e) { toast("Gagal mengimpor: " + e.message); }
 });
 
-render();
-checkReminders();
-setInterval(checkReminders, 30 * 60 * 1000);
+/* ================= Data bersama (Supabase) & login ================= */
+function safeName(n) { return String(n).normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^A-Za-z0-9._-]+/g, "_").slice(-80); }
 
-/* ================= PIN ================= */
-const PINKEY = "docutrack.pin.v1", UNLOCK = "docutrack.unlocked", FAILKEY = "docutrack.pinfail.v1";
-const IDLE_MS = 5 * 60 * 1000;
-let idleT, lastBump = 0;
-
-function pinRec() { try { return JSON.parse(localStorage.getItem(PINKEY)); } catch (e) { return null; } }
-function hasPin() { return !!pinRec(); }
-function cyrb(s) {
-  let h1 = 0xdeadbeef, h2 = 0x41c6ce57;
-  for (let i = 0; i < s.length; i++) { const c = s.charCodeAt(i); h1 = Math.imul(h1 ^ c, 2654435761); h2 = Math.imul(h2 ^ c, 1597334677); }
-  h1 = Math.imul(h1 ^ (h1 >>> 16), 2246822507) ^ Math.imul(h2 ^ (h2 >>> 13), 3266489909);
-  h2 = Math.imul(h2 ^ (h2 >>> 16), 2246822507) ^ Math.imul(h1 ^ (h1 >>> 13), 3266489909);
-  return (4294967296 * (2097151 & h2) + (h1 >>> 0)).toString(16);
+function fromRow(r) {
+  return {
+    id: r.id, owner: r.owner_id, name: r.name, cat: r.cat || "Lainnya", no: r.no || "", issuer: r.issuer || "",
+    issue: r.issue || "", expiry: r.expiry, remind: r.remind || 30, note: r.note || "", proc: r.proc || "todo",
+    fileId: r.file_path || "", fileName: r.file_name || "", fileType: r.file_type || "", dates: r.dates || [],
+    ocrText: r.ocr_text || "", added: Date.parse(r.created_at) || 0
+  };
 }
-const defaultAlg = () => (window.crypto && crypto.subtle ? "sha256" : "cyrb");
-async function hashWith(alg, pin, salt) {
-  const s = salt + ":" + pin;
-  if (alg === "sha256") {
-    const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(s));
-    return [...new Uint8Array(buf)].map((b) => b.toString(16).padStart(2, "0")).join("");
-  }
-  return cyrb(s);
-}
-async function checkPin(pin) {
-  const r = pinRec();
-  if (!r) return true;
-  try { return (await hashWith(r.alg || "sha256", pin, r.salt)) === r.hash; } catch (e) { return false; }
+let loading = null;
+async function loadAll() {
+  if (!sb || !me) return;
+  if (loading) return loading;
+  loading = (async () => {
+    try {
+      const [d, p] = await Promise.all([
+        sb.from("documents").select("*").order("expiry", { ascending: true }),
+        sb.from("profiles").select("id, full_name, email"),
+      ]);
+      if (d.error) throw d.error;
+      if (!p.error) people = Object.fromEntries((p.data || []).map((x) => [x.id, x.full_name || x.email]));
+      items = (d.data || []).map(fromRow);
+      render(); checkReminders();
+    } catch (err) { console.error(err); toast("Gagal memuat data: " + (err.message || err)); }
+    loading = null;
+  })();
+  return loading;
 }
 
-function showLock() {
+let channel = null, rtTimer;
+function startRealtime() {
+  if (channel || !sb) return;
+  channel = sb.channel("docs-live").on("postgres_changes", { event: "*", schema: "public", table: "documents" }, () => {
+    clearTimeout(rtTimer); rtTimer = setTimeout(loadAll, 300);
+  }).subscribe();
+}
+function stopRealtime() { if (channel) { sb.removeChannel(channel); channel = null; } }
+
+function showLogin(msg) {
   document.documentElement.classList.add("locked");
   document.querySelectorAll("dialog[open]").forEach((d) => d.close());
-  $("lock").hidden = false; $("lockPin").value = ""; $("lockErr").textContent = "";
-  setTimeout(() => $("lockPin").focus(), 50);
+  $("lock").hidden = false;
+  $("lockErr").textContent = msg || "";
+  $("loginPass").value = "";
+  setTimeout(() => ($("loginEmail").value ? $("loginPass") : $("loginEmail")).focus(), 50);
 }
-function lockNow() { try { sessionStorage.removeItem(UNLOCK); } catch (e) {} showLock(); }
-function unlock() {
-  try { sessionStorage.setItem(UNLOCK, "1"); } catch (e) {}
+async function enter(user) {
+  const p = await sb.from("profiles").select("full_name, role").eq("id", user.id).maybeSingle();
+  me = { id: user.id, email: user.email, name: p.data?.full_name || user.email, role: p.data?.role || "staff" };
+  $("userName").textContent = me.name + (isAdmin() ? " (admin)" : "");
+  $("userBar").hidden = false;
   document.documentElement.classList.remove("locked");
-  $("lock").hidden = true; bump();
+  $("lock").hidden = true;
+  await loadAll();
+  startRealtime();
 }
-function bump() { clearTimeout(idleT); if (hasPin() && $("lock").hidden) idleT = setTimeout(lockNow, IDLE_MS); }
-function activity() { const n = Date.now(); if (n - lastBump > 1000) { lastBump = n; bump(); } }
-["click", "keydown", "touchstart", "mousemove"].forEach((ev) => document.addEventListener(ev, activity, { passive: true }));
+async function leave(msg) {
+  stopRealtime(); me = null; items = []; render();
+  $("userBar").hidden = true;
+  showLogin(msg);
+}
 
-function failState() { try { return JSON.parse(localStorage.getItem(FAILKEY)) || { n: 0, until: 0 }; } catch (e) { return { n: 0, until: 0 }; } }
 $("lockForm").addEventListener("submit", async (e) => {
   e.preventDefault();
-  const f = failState(), now = Date.now();
-  if (f.until > now) { $("lockErr").textContent = `Terlalu banyak percobaan. Coba lagi dalam ${Math.ceil((f.until - now) / 1000)} detik.`; return; }
-  if (await checkPin($("lockPin").value)) { try { localStorage.removeItem(FAILKEY); } catch (err) {} unlock(); return; }
-  f.n++;
-  if (f.n >= 5) { f.until = now + 30000; f.n = 0; }
-  try { localStorage.setItem(FAILKEY, JSON.stringify(f)); } catch (err) {}
-  $("lockPin").value = "";
-  $("lockErr").textContent = f.until > now ? "5 kali salah. Tunggu 30 detik." : "PIN salah.";
+  $("lockErr").textContent = "";
+  const btn = $("loginBtn"); btn.disabled = true; btn.textContent = "Masuk…";
+  const { data, error } = await sb.auth.signInWithPassword({ email: $("loginEmail").value.trim(), password: $("loginPass").value });
+  btn.disabled = false; btn.textContent = "Masuk";
+  if (error) { $("lockErr").textContent = /invalid/i.test(error.message) ? "Email atau kata sandi salah." : error.message; $("loginPass").value = ""; return; }
+  await enter(data.user);
 });
-$("forgotBtn").onclick = async () => {
-  if (!confirm("Reset akan MENGHAPUS PIN dan SEMUA data DocuTrack di browser ini (dokumen dan berkas). Lanjutkan?")) return;
-  [KEY, SKEY, NKEY, PINKEY, FAILKEY].forEach((k) => localStorage.removeItem(k));
-  try { sessionStorage.removeItem(UNLOCK); } catch (e) {}
-  const done = () => location.reload();
-  try { (await dbp).close(); const r = indexedDB.deleteDatabase("docutrack"); r.onsuccess = r.onerror = r.onblocked = done; } catch (e) { done(); }
-};
+$("logoutBtn").onclick = async () => { await sb.auth.signOut(); await leave(); };
 
-// ---- Dialog Keamanan ----
-function secRefresh() {
-  const has = hasPin();
-  $("secInfo").textContent = has ? "PIN aktif. Aplikasi terkunci otomatis setelah 5 menit tidak aktif." : "PIN belum diatur.";
-  $("secCurWrap").hidden = !has; $("secRemove").hidden = !has; $("lockBtn").hidden = !has;
-  ["secCur", "secNew", "secNew2"].forEach((id) => ($(id).value = ""));
-  $("secErr").textContent = "";
-}
-$("secBtn").onclick = () => { secRefresh(); $("secDlg").showModal(); };
-$("lockBtn").onclick = lockNow;
-$("secDlg").querySelector("form").addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); $("secSave").click(); } });
-$("secSave").onclick = async () => {
-  const err = (m) => { $("secErr").textContent = m; };
-  if (hasPin() && !(await checkPin($("secCur").value))) return err("PIN saat ini salah.");
-  const p = $("secNew").value;
-  if (!/^\d{4,8}$/.test(p)) return err("PIN baru harus 4–8 angka.");
-  if (p !== $("secNew2").value) return err("Ulangi PIN tidak sama.");
-  const salt = uid() + uid(), alg = defaultAlg();
-  try { localStorage.setItem(PINKEY, JSON.stringify({ salt, alg, hash: await hashWith(alg, p, salt) })); }
-  catch (e) { return err("Gagal menyimpan PIN."); }
-  try { sessionStorage.setItem(UNLOCK, "1"); } catch (e) {}
-  secRefresh(); bump(); toast("PIN disimpan");
-};
-$("secRemove").onclick = async () => {
-  if (!(await checkPin($("secCur").value))) { $("secErr").textContent = "PIN saat ini salah."; return; }
-  localStorage.removeItem(PINKEY); clearTimeout(idleT); secRefresh(); toast("PIN dihapus");
-};
-
-// ---- Status awal ----
-$("lockBtn").hidden = !hasPin();
-if (hasPin()) {
-  let ok = false;
-  try { ok = sessionStorage.getItem(UNLOCK) === "1"; } catch (e) {}
-  if (ok) { document.documentElement.classList.remove("locked"); bump(); } else showLock();
-} else document.documentElement.classList.remove("locked");
+(async function init() {
+  if (!sb) { showLogin("Library Supabase gagal dimuat. Periksa koneksi internet lalu muat ulang."); return; }
+  render();
+  sb.auth.onAuthStateChange((ev) => { if (ev === "SIGNED_OUT" && me) leave("Sesi berakhir, silakan masuk lagi."); });
+  const { data } = await sb.auth.getSession();
+  if (data.session) await enter(data.session.user); else showLogin();
+})();
+setInterval(checkReminders, 30 * 60 * 1000);
 
 window.__docutrackReady = true;
