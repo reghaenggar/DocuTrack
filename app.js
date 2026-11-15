@@ -16,6 +16,9 @@ let settings = (() => {
 })();
 const PROC = [["todo", "Belum diurus"], ["doing", "Sedang diproses"], ["done", "Selesai"]];
 let view = "list";
+let barAnim = false;
+const reduceMotion = matchMedia("(prefers-reduced-motion: reduce)").matches;
+const prevStat = {};
 let calY = new Date().getFullYear(), calM = new Date().getMonth();
 const isAdmin = () => me?.role === "admin";
 const canEdit = (it) => !!me && (isAdmin() || it.owner === me.id);
@@ -49,11 +52,10 @@ function render() {
   renderAlert();
   const counts = { expired: 0, soon: 0, active: 0 };
   items.forEach((it) => counts[status(it)]++);
-  $("stats").innerHTML = `
-    <div class="stat"><b>${items.length}</b><span>Total dokumen</span></div>
-    <div class="stat bad"><b>${counts.expired}</b><span>Kedaluwarsa</span></div>
-    <div class="stat warn"><b>${counts.soon}</b><span>Segera berakhir</span></div>
-    <div class="stat ok"><b>${counts.active}</b><span>Aktif</span></div>`;
+  const fsNow = $("filterStatus").value;
+  const S = (cls, key, n, txt) => `<button type="button" class="stat glass ${cls}${fsNow === key ? " on" : ""}" data-stat="${key}" aria-pressed="${fsNow === key}"><b data-to="${n}">${n}</b><span>${txt}</span></button>`;
+  $("stats").innerHTML = S("", "all", items.length, "Total dokumen") + S("bad", "expired", counts.expired, "Kedaluwarsa") + S("warn", "soon", counts.soon, "Segera berakhir") + S("ok", "active", counts.active, "Aktif");
+  countUp();
 
   const cats = [...new Set(items.map((i) => i.cat))].sort();
   const cur = $("filterCat").value || "all";
@@ -72,12 +74,15 @@ function render() {
       sort === "added" ? b.added - a.added :
         parse(a.expiry) - parse(b.expiry));
 
+  $("resetBtn").hidden = !(q || fs !== "all" || fp !== "all" || fc !== "all");
+  renderCats();
   renderCalendar(list);
+  $("list").classList.toggle("grow", barAnim);
   $("list").hidden = view !== "list";
   $("calendar").hidden = view !== "cal";
   $("list").innerHTML = list.length ? list.map((it) => {
     const st = status(it);
-    return `<article class="card ${st}">
+    return `<article class="card glass ${st}">
       <div class="card-head">
         <div>
           <h3>${esc(it.name)}</h3>
@@ -91,6 +96,7 @@ function render() {
       ${it.note ? `<div class="note">${esc(it.note)}</div>` : ""}
       <div class="card-actions">
         ${st !== "active" || (it.proc || "todo") !== "todo" ? `<select class="proc ${it.proc || "todo"}" data-proc="${it.id}"${canEdit(it) ? "" : " disabled"} aria-label="Status proses ${esc(it.name)}">${PROC.map(([v, l]) => `<option value="${v}"${(it.proc || "todo") === v ? " selected" : ""}>${l}</option>`).join("")}</select>` : ""}
+        ${canEdit(it) && st !== "active" && (it.proc || "todo") !== "done" ? `<button class="btn ghost small ok-btn" data-done="${it.id}" type="button">Tandai selesai</button>` : ""}
         ${it.fileId ? `<button class="btn ghost small" data-view="${it.id}" type="button">Lihat dokumen</button>` : ""}
         ${canEdit(it) ? `<button class="btn ghost small" data-edit="${it.id}" type="button">Ubah</button>
         <button class="btn danger small" data-del="${it.id}" type="button">Hapus</button>` : ""}
@@ -147,6 +153,11 @@ $("list").addEventListener("click", async (e) => {
   const ed = e.target.closest("[data-edit]"), del = e.target.closest("[data-del]"), vw = e.target.closest("[data-view]");
   if (ed) openForm(items.find((i) => i.id === ed.dataset.edit));
   if (vw) openViewer(vw.dataset.view);
+  const dn = e.target.closest("[data-done]");
+  if (dn) {
+    const r = await sb.from("documents").update({ proc: "done" }).eq("id", dn.dataset.done);
+    toast(r.error ? "Gagal memperbarui: " + r.error.message : "Ditandai selesai"); await loadAll();
+  }
   if (del && confirm("Hapus dokumen ini untuk semua pengguna?")) {
     const it = items.find((i) => i.id === del.dataset.del);
     try {
@@ -574,7 +585,7 @@ async function loadAll() {
       if (d.error) throw d.error;
       if (!p.error) people = Object.fromEntries((p.data || []).map((x) => [x.id, x.full_name || x.email]));
       items = (d.data || []).map(fromRow);
-      render(); checkReminders();
+      barAnim = true; render(); barAnim = false; checkReminders();
     } catch (err) { console.error(err); toast("Gagal memuat data: " + (err.message || err)); }
     loading = null;
   })();
@@ -603,6 +614,8 @@ async function enter(user) {
   me = { id: user.id, email: user.email, name: p.data?.full_name || user.email, role: p.data?.role || "staff" };
   $("userName").textContent = me.name + (isAdmin() ? " (admin)" : "");
   $("userBar").hidden = false;
+  $("heroName").textContent = (me.name || "").split(/[ @]/)[0] || "tim";
+  $("userAvatar").textContent = (me.name || "?").trim().charAt(0).toUpperCase();
   document.documentElement.classList.remove("locked");
   $("lock").hidden = true;
   await loadAll();
@@ -634,4 +647,72 @@ $("logoutBtn").onclick = async () => { await sb.auth.signOut(); await leave(); }
 })();
 setInterval(checkReminders, 30 * 60 * 1000);
 
+/* ================= Interaksi tambahan (glass UI) ================= */
+function countUp() {
+  document.querySelectorAll("#stats b[data-to]").forEach((el, i) => {
+    const to = Number(el.dataset.to), from = prevStat[i] ?? 0;
+    prevStat[i] = to;
+    if (reduceMotion || from === to) { el.textContent = to; return; }
+    const t0 = performance.now(), dur = 700;
+    (function step(t) {
+      const p = Math.min(1, (t - t0) / dur), e = 1 - Math.pow(1 - p, 3);
+      el.textContent = Math.round(from + (to - from) * e);
+      if (p < 1) requestAnimationFrame(step);
+    })(t0);
+  });
+}
+// stat = filter cepat
+$("stats").addEventListener("click", (e) => {
+  const b = e.target.closest("[data-stat]"); if (!b) return;
+  $("filterStatus").value = $("filterStatus").value === b.dataset.stat ? "all" : b.dataset.stat;
+  if (view !== "list") document.querySelector('.views [data-mode="list"]').click(); else render();
+});
+$("resetBtn").onclick = () => {
+  $("search").value = "";["filterStatus", "filterProc", "filterCat"].forEach((id) => ($(id).value = "all")); render();
+};
+// cahaya mengikuti kursor pada permukaan kaca
+document.addEventListener("pointermove", (e) => {
+  const g = e.target.closest?.(".glass"); if (!g) return;
+  const r = g.getBoundingClientRect();
+  g.style.setProperty("--mx", e.clientX - r.left + "px"); g.style.setProperty("--my", e.clientY - r.top + "px");
+}, { passive: true });
+// navbar mengecil saat scroll + menu HP
+const navEl = $("nav");
+const onScroll = () => navEl.classList.toggle("scrolled", scrollY > 12);
+addEventListener("scroll", onScroll, { passive: true }); onScroll();
+$("menuBtn").onclick = () => {
+  const on = navEl.classList.toggle("open"); $("menuBtn").setAttribute("aria-expanded", on);
+};
+$("navActions").addEventListener("click", (e) => { if (e.target.closest(".btn")) { navEl.classList.remove("open"); $("menuBtn").setAttribute("aria-expanded", false); } });
+// pintasan keyboard
+document.addEventListener("keydown", (e) => {
+  if (e.metaKey || e.ctrlKey || e.altKey || !me || document.querySelector("dialog[open]")) return;
+  if (/^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName)) { if (e.key === "Escape") e.target.blur(); return; }
+  if (e.key === "/") { e.preventDefault(); $("search").focus(); }
+  else if (e.key.toLowerCase() === "n") { e.preventDefault(); openForm(); }
+});
+$("heroDate").textContent = new Date().toLocaleDateString("id-ID", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
+// dialog tutup saat klik area luar
+document.querySelectorAll("dialog").forEach((d) => d.addEventListener("mousedown", (e) => { if (e.target !== d) return; const r = d.getBoundingClientRect(); if (e.clientX < r.left || e.clientX > r.right || e.clientY < r.top || e.clientY > r.bottom) d.close(); }));
+
+$("year").textContent = new Date().getFullYear();
+function renderCats() {
+  const n = {}; items.forEach((i) => (n[i.cat] = (n[i.cat] || 0) + 1));
+  document.querySelectorAll(".cat").forEach((b) => {
+    const c = b.dataset.cat, on = $("filterCat").value === c;
+    b.querySelector("small").textContent = (n[c] || 0) + " dokumen";
+    b.classList.toggle("on", on); b.setAttribute("aria-pressed", on);
+  });
+}
+$("cats").addEventListener("click", (e) => {
+  const b = e.target.closest(".cat"); if (!b) return;
+  const c = b.dataset.cat;
+  if (!items.some((i) => i.cat === c)) { toast("Belum ada dokumen kategori " + c); return; }
+  $("filterCat").value = $("filterCat").value === c ? "all" : c;
+  if (view !== "list") document.querySelector('.views [data-mode="list"]').click(); else render();
+  $("list").scrollIntoView({ behavior: reduceMotion ? "auto" : "smooth", block: "start" });
+});
+$("navLogout").onclick = () => $("logoutBtn").click();
+$("heroAdd").onclick = () => openForm();
+$("heroCal").onclick = () => { document.querySelector('.views [data-mode="cal"]').click(); $("calendar").scrollIntoView({ behavior: reduceMotion ? "auto" : "smooth", block: "start" }); };
 window.__docutrackReady = true;

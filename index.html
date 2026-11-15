@@ -5,66 +5,82 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>DocuTrack – Pelacak Masa Berlaku Dokumen</title>
+  <link rel="icon" href="assets/logo.svg" type="image/svg+xml">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link
-    href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@500;700;800&family=Instrument+Sans:wght@400;500;600&family=Poppins:wght@600;700&display=swap"
+    href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@500;700;800&family=Instrument+Sans:wght@400;500;600&display=swap"
     rel="stylesheet">
   <script>document.documentElement.classList.add("locked")</script>
-  <link rel="stylesheet" href="style.css?v=10">
+  <link rel="stylesheet" href="style.css?v=18">
 </head>
 
 <body>
-  <div class="bg" aria-hidden="true">
-    <svg viewBox="0 0 1600 900" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg">
-      <g fill="rgba(255,255,255,0.09)">
-        <circle cx="1475" cy="150" r="265" />
-        <circle cx="1590" cy="300" r="160" />
-        <circle cx="1350" cy="845" r="217" fill="rgba(255,255,255,0.12)" />
-        <circle cx="100" cy="880" r="175" />
-      </g>
-      <g fill="none" stroke="rgba(255,255,255,0.3)" stroke-width="1.5">
-        <path d="M1049 270 A448 410 0 0 0 1497 680" />
-        <path d="M1107 260 A395 360 0 0 0 1502 622" />
-        <path d="M1165 250 A340 313 0 0 0 1507 563" />
-      </g>
-    </svg>
-  </div>
-  <header class="top">
-    <div class="brand">
-      <span class="logo" aria-hidden="true"></span>
-      <h1>DocuTrack</h1>
-    </div>
-    <div class="top-actions">
-      <button class="btn ghost" id="remBtn" type="button">Pengingat</button>
-      <button class="btn ghost" id="backupBtn" type="button">Cadangkan</button>
-      <button class="btn ghost" id="restoreBtn" type="button">Impor</button>
-      <input type="file" id="restoreFile" accept=".zip,.json" hidden>
-      <button class="btn primary" id="addBtn" type="button">+ Tambah dokumen</button>
+  <div class="bg" aria-hidden="true"><i class="orb o1"></i><i class="orb o2"></i><i class="orb o3"></i></div>
+  <header class="top" id="top">
+    <div class="nav glass" id="nav">
+      <a class="brand" href="#" aria-label="DocuTrack">
+        <span class="co-logo" aria-hidden="true"></span>
+        <span class="brand-txt">
+          <h1>DocuTrack</h1><small>PT. Monika Jaya</small>
+        </span>
+      </a>
+      <nav class="top-actions" id="navActions" aria-label="Menu utama">
+        <button class="btn nav-btn" id="remBtn" type="button">Pengingat</button>
+        <button class="btn nav-btn" id="backupBtn" type="button">Cadangkan</button>
+        <button class="btn nav-btn" id="restoreBtn" type="button">Impor</button>
+        <input type="file" id="restoreFile" accept=".zip,.json" hidden>
+        <button class="btn nav-btn mob-only" id="navLogout" type="button">Keluar</button>
+      </nav>
+      <div class="nav-end">
+        <div id="userBar" class="userbar" hidden>
+          <span class="avatar" id="userAvatar" aria-hidden="true"></span>
+          <span id="userName"></span>
+          <button class="btn ghost small" id="logoutBtn" type="button">Keluar</button>
+        </div>
+        <button class="btn primary" id="addBtn" type="button">+ Tambah dokumen</button>
+        <button class="btn icon menu-btn" id="menuBtn" type="button" aria-label="Buka menu" aria-expanded="false"
+          aria-controls="navActions"><span></span></button>
+      </div>
     </div>
   </header>
-  <nav class="company" aria-label="Perusahaan">
-    <span class="co-logo" aria-hidden="true">M</span>
-    <div>
-      <span class="co-name">PT. Monika Jaya</span>
-      <i class="co-line"></i>
-    </div>
-    <div id="userBar" class="userbar" hidden>
-      <span id="userName"></span>
-      <button class="btn ghost small" id="logoutBtn" type="button">Keluar</button>
-    </div>
-  </nav>
 
   <main>
+    <section class="banner">
+      <div class="banner-txt">
+        <p class="kick">Ringkasan hari ini <span id="heroDate"></span></p>
+        <h2>Halo, <span id="heroName">tim</span></h2>
+        <p class="banner-sub">Pantau masa berlaku dokumen dan perizinan PT. Monika Jaya dalam satu tempat.</p>
+        <div class="banner-cta">
+          <button class="btn primary" id="heroAdd" type="button">+ Tambah dokumen</button>
+          <button class="btn ghost" id="heroCal" type="button">Lihat kalender</button>
+        </div>
+        <p class="kbd-hint">Tekan <kbd>/</kbd> untuk mencari, <kbd>N</kbd> untuk dokumen baru</p>
+      </div>
+    </section>
+
     <div id="alertBar" class="alert" role="status" hidden></div>
+    <section class="cats glass" id="cats" aria-label="Kategori dokumen">
+      <button class="cat" type="button" data-cat="Identitas" aria-pressed="false"><span class="cat-img"
+          style="background-image:url(assets/cat-identitas.svg)"></span><b>Identitas</b><small>0
+          dokumen</small></button>
+      <button class="cat" type="button" data-cat="Kendaraan" aria-pressed="false"><span class="cat-img"
+          style="background-image:url(assets/cat-kendaraan.svg)"></span><b>Kendaraan</b><small>0
+          dokumen</small></button>
+      <button class="cat" type="button" data-cat="Bisnis" aria-pressed="false"><span class="cat-img"
+          style="background-image:url(assets/cat-bisnis.svg)"></span><b>Bisnis</b><small>0 dokumen</small></button>
+      <button class="cat" type="button" data-cat="Profesi" aria-pressed="false"><span class="cat-img"
+          style="background-image:url(assets/cat-profesi.svg)"></span><b>Profesi</b><small>0 dokumen</small></button>
+    </section>
     <section class="stats" id="stats" aria-label="Ringkasan"></section>
     <div class="views" role="group" aria-label="Tampilan">
       <button class="btn small active" type="button" data-mode="list" aria-pressed="true">Daftar</button>
       <button class="btn small" type="button" data-mode="cal" aria-pressed="false">Kalender</button>
     </div>
 
-    <section class="toolbar">
-      <input type="search" id="search" placeholder="Cari nama, nomor, atau penerbit…" aria-label="Cari dokumen">
+    <section class="toolbar glass">
+      <input class="search" type="search" id="search" placeholder="Cari nama, nomor, atau penerbit"
+        aria-label="Cari dokumen">
       <select id="filterStatus" aria-label="Filter status">
         <option value="all">Semua status</option>
         <option value="expired">Kedaluwarsa</option>
@@ -83,11 +99,49 @@
         <option value="name">Nama A–Z</option>
         <option value="added">Terbaru ditambahkan</option>
       </select>
+      <button class="btn ghost small" id="resetBtn" type="button" hidden>Reset filter</button>
     </section>
 
     <section id="list" class="list" aria-live="polite"></section>
     <section id="calendar" class="cal" hidden></section>
   </main>
+
+  <div class="foot-wrap">
+    <footer class="foot glass">
+      <div class="foot-grid">
+        <div>
+          <div class="brand foot-brand"><span class="co-logo" aria-hidden="true"></span><span class="brand-txt"><b>PT.
+                Monika Jaya</b><small>DocuTrack</small></span></div>
+          <p class="meta">Pemantauan masa berlaku dokumen dan perizinan perusahaan secara terpusat, agar tidak ada yang
+            terlewat.</p>
+        </div>
+        <div>
+          <h3>Kontak</h3>
+          <ul>
+            <li>Jl. Contoh Raya No. 123, Bandung, Jawa Barat 40111</li>
+            <li><a href="tel:+62220000000">(022) 000-0000</a></li>
+            <li><a href="mailto:info@perusahaan.co.id">info@perusahaan.co.id</a></li>
+          </ul>
+        </div>
+        <div>
+          <h3>Jam operasional</h3>
+          <ul>
+            <li>Senin – Jumat, 08.00 – 17.00 WIB</li>
+            <li>Sabtu, 08.00 – 12.00 WIB</li>
+          </ul>
+        </div>
+        <div>
+          <h3>Bantuan</h3>
+          <ul>
+            <li>Kendala akun atau data? Hubungi admin DocuTrack.</li>
+            <li><a href="mailto:admin@perusahaan.co.id">admin@perusahaan.co.id</a></li>
+          </ul>
+        </div>
+      </div>
+      <div class="foot-bar"><span>© <span id="year"></span> PT. Monika Jaya. Hak cipta dilindungi.</span><span>Data
+          dokumen bersifat rahasia dan hanya untuk internal perusahaan.</span></div>
+    </footer>
+  </div>
 
   <dialog id="dlg">
     <form id="form" method="dialog">
@@ -195,8 +249,25 @@
   </dialog>
 
   <div id="lock" class="lock" hidden>
-    <form id="lockForm" class="lock-card" autocomplete="on">
-      <span class="co-logo" aria-hidden="true">M</span>
+    <form id="lockForm" class="lock-card glass" autocomplete="on">
+      <svg class="bld" viewBox="0 0 320 120" fill="none" stroke="currentColor" stroke-width="1.5"
+        stroke-linejoin="round" aria-hidden="true">
+        <path d="M8 112h304" stroke-linecap="round" />
+        <rect x="22" y="70" width="46" height="42" rx="3" fill="rgba(255,255,255,.07)" />
+        <rect x="78" y="40" width="58" height="72" rx="4" fill="rgba(255,255,255,.1)" />
+        <path d="M150 112V22a4 4 0 0 1 4-4h40a4 4 0 0 1 4 4v90" fill="rgba(255,255,255,.16)" />
+        <path d="M174 18V6" stroke-linecap="round" />
+        <circle cx="174" cy="5" r="2.5" fill="#f4a261" stroke="none" />
+        <rect x="212" y="52" width="52" height="60" rx="4" fill="rgba(255,255,255,.1)" />
+        <rect x="272" y="78" width="30" height="34" rx="3" fill="rgba(255,255,255,.07)" />
+        <g stroke-opacity=".55" stroke-linecap="round">
+          <path d="M160 32h28M160 46h28M160 60h28M160 74h28M160 88h28" />
+          <path d="M88 54h38M88 68h38M88 82h38M222 66h32M222 80h32" />
+          <path d="M32 82h26M32 96h26M280 90h14M280 102h14" />
+        </g>
+        <rect x="165" y="98" width="18" height="14" rx="2" fill="#f4a261" fill-opacity=".85" stroke="none" />
+      </svg>
+      <span class="co-logo" aria-hidden="true"></span>
       <h2>Masuk ke DocuTrack</h2>
       <p class="meta">Gunakan akun yang dibuat oleh admin.</p>
       <input id="loginEmail" type="email" placeholder="Email" aria-label="Email" autocomplete="username" required>
@@ -223,6 +294,9 @@
         window.addEventListener("error", function (e) {
           if (e.filename && /app\.js/.test(e.filename)) show("Error di app.js baris " + e.lineno + ": " + e.message);
         });
+        window.addEventListener("unhandledrejection", function (e) {
+          show("Error: " + ((e.reason && e.reason.message) || e.reason));
+        });
         window.addEventListener("load", function () {
           setTimeout(function () {
             if (!window.__docutrackReady) show("app.js belum berjalan sempurna. Pastikan index.html, style.css, dan app.js semuanya versi terbaru, lalu tekan Ctrl+Shift+R.");
@@ -234,7 +308,7 @@
   <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
-  <script src="app.js?v=11"></script>
+  <script src="app.js?v=17"></script>
 </body>
 
 </html>
