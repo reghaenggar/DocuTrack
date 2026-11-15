@@ -1,28 +1,32 @@
 <!DOCTYPE html>
 <html lang="id">
+
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>DocuTrack – Pelacak Masa Berlaku Dokumen</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@500;700;800&family=Instrument+Sans:wght@400;500;600&family=Poppins:wght@600;700&display=swap" rel="stylesheet">
-  <script>try{if(localStorage.getItem("docutrack.pin.v1")&&sessionStorage.getItem("docutrack.unlocked")!=="1")document.documentElement.classList.add("locked")}catch(e){}</script>
-  <link rel="stylesheet" href="style.css?v=4">
+  <link
+    href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@500;700;800&family=Instrument+Sans:wght@400;500;600&family=Poppins:wght@600;700&display=swap"
+    rel="stylesheet">
+  <script>document.documentElement.classList.add("locked")</script>
+  <link rel="stylesheet" href="style.css?v=10">
 </head>
+
 <body>
   <div class="bg" aria-hidden="true">
     <svg viewBox="0 0 1600 900" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg">
       <g fill="rgba(255,255,255,0.09)">
-        <circle cx="1475" cy="150" r="265"/>
-        <circle cx="1590" cy="300" r="160"/>
-        <circle cx="1350" cy="845" r="217" fill="rgba(255,255,255,0.12)"/>
-        <circle cx="100" cy="880" r="175"/>
+        <circle cx="1475" cy="150" r="265" />
+        <circle cx="1590" cy="300" r="160" />
+        <circle cx="1350" cy="845" r="217" fill="rgba(255,255,255,0.12)" />
+        <circle cx="100" cy="880" r="175" />
       </g>
       <g fill="none" stroke="rgba(255,255,255,0.3)" stroke-width="1.5">
-        <path d="M1049 270 A448 410 0 0 0 1497 680"/>
-        <path d="M1107 260 A395 360 0 0 0 1502 622"/>
-        <path d="M1165 250 A340 313 0 0 0 1507 563"/>
+        <path d="M1049 270 A448 410 0 0 0 1497 680" />
+        <path d="M1107 260 A395 360 0 0 0 1502 622" />
+        <path d="M1165 250 A340 313 0 0 0 1507 563" />
       </g>
     </svg>
   </div>
@@ -33,10 +37,8 @@
     </div>
     <div class="top-actions">
       <button class="btn ghost" id="remBtn" type="button">Pengingat</button>
-      <button class="btn ghost" id="secBtn" type="button">Keamanan</button>
-      <button class="btn ghost" id="lockBtn" type="button" hidden>Kunci</button>
       <button class="btn ghost" id="backupBtn" type="button">Cadangkan</button>
-      <button class="btn ghost" id="restoreBtn" type="button">Pulihkan</button>
+      <button class="btn ghost" id="restoreBtn" type="button">Impor</button>
       <input type="file" id="restoreFile" accept=".zip,.json" hidden>
       <button class="btn primary" id="addBtn" type="button">+ Tambah dokumen</button>
     </div>
@@ -46,6 +48,10 @@
     <div>
       <span class="co-name">PT. Monika Jaya</span>
       <i class="co-line"></i>
+    </div>
+    <div id="userBar" class="userbar" hidden>
+      <span id="userName"></span>
+      <button class="btn ghost small" id="logoutBtn" type="button">Keluar</button>
     </div>
   </nav>
 
@@ -73,7 +79,7 @@
       </select>
       <select id="filterCat" aria-label="Filter kategori"></select>
       <select id="sort" aria-label="Urutkan">
-        <option value="expiry">Paling cepat berakhir</option>
+        <option value="expiry">Berakhir terdekat</option>
         <option value="name">Nama A–Z</option>
         <option value="added">Terbaru ditambahkan</option>
       </select>
@@ -99,8 +105,12 @@
       <div class="row">
         <label>Kategori
           <select id="fCat">
-            <option>Identitas</option><option>Kendaraan</option><option>Bisnis</option>
-            <option>Profesi</option><option>Perangkat lunak</option><option>Lainnya</option>
+            <option>Identitas</option>
+            <option>Kendaraan</option>
+            <option>Bisnis</option>
+            <option>Profesi</option>
+            <option>Perangkat lunak</option>
+            <option>Lainnya</option>
           </select>
         </label>
         <label>Nomor dokumen
@@ -140,29 +150,6 @@
     </form>
   </dialog>
 
-  <dialog id="secDlg">
-    <form method="dialog">
-      <h2>Keamanan</h2>
-      <p class="meta" id="secInfo"></p>
-      <label id="secCurWrap">PIN saat ini
-        <input id="secCur" type="password" inputmode="numeric" maxlength="8" autocomplete="off">
-      </label>
-      <label>PIN baru (4–8 angka)
-        <input id="secNew" type="password" inputmode="numeric" maxlength="8" autocomplete="off">
-      </label>
-      <label>Ulangi PIN baru
-        <input id="secNew2" type="password" inputmode="numeric" maxlength="8" autocomplete="off">
-      </label>
-      <p class="lock-err" id="secErr" role="alert"></p>
-      <p class="meta">PIN mengunci tampilan aplikasi, tetapi bukan enkripsi: data tetap tersimpan di browser ini.</p>
-      <div class="dlg-actions">
-        <button class="btn danger" type="button" id="secRemove" hidden>Hapus PIN</button>
-        <button class="btn primary" type="button" id="secSave">Simpan PIN</button>
-        <button class="btn ghost" type="submit">Tutup</button>
-      </div>
-    </form>
-  </dialog>
-
   <dialog id="remDlg">
     <form method="dialog">
       <h2>Pengingat</h2>
@@ -175,7 +162,9 @@
         <label class="chk"><input type="checkbox" name="remDay" value="1"> 1 hari</label>
       </fieldset>
       <p class="meta" id="remInfo"></p>
-      <p class="meta">Notifikasi hanya muncul saat DocuTrack terbuka di browser. Untuk pengingat yang tetap berbunyi saat aplikasi tertutup, unduh file kalender (.ics) lalu buka di Google Calendar, Outlook, atau aplikasi kalender HP.</p>
+      <p class="meta">Notifikasi hanya muncul saat DocuTrack terbuka di browser. Untuk pengingat yang tetap berbunyi
+        saat aplikasi tertutup, unduh file kalender (.ics) lalu buka di Google Calendar, Outlook, atau aplikasi kalender
+        HP.</p>
       <div class="dlg-actions">
         <button class="btn ghost" type="button" id="remTest">Kirim tes</button>
         <button class="btn ghost" type="button" data-ics>Unduh .ics</button>
@@ -197,49 +186,55 @@
       <aside>
         <h3>Tanggal pada dokumen</h3>
         <ul id="vDates" class="vdates"></ul>
-        <details><summary>Teks hasil baca</summary><pre id="vText"></pre></details>
+        <details>
+          <summary>Teks hasil baca</summary>
+          <pre id="vText"></pre>
+        </details>
       </aside>
     </div>
   </dialog>
 
   <div id="lock" class="lock" hidden>
-    <form id="lockForm" class="lock-card" autocomplete="off">
+    <form id="lockForm" class="lock-card" autocomplete="on">
       <span class="co-logo" aria-hidden="true">M</span>
-      <h2>DocuTrack terkunci</h2>
-      <p class="meta">Masukkan PIN untuk membuka.</p>
-      <input id="lockPin" type="password" inputmode="numeric" maxlength="8" placeholder="PIN" aria-label="PIN" autocomplete="off">
+      <h2>Masuk ke DocuTrack</h2>
+      <p class="meta">Gunakan akun yang dibuat oleh admin.</p>
+      <input id="loginEmail" type="email" placeholder="Email" aria-label="Email" autocomplete="username" required>
+      <input id="loginPass" type="password" placeholder="Kata sandi" aria-label="Kata sandi"
+        autocomplete="current-password" required>
       <p id="lockErr" class="lock-err" role="alert"></p>
-      <button class="btn primary" type="submit">Buka</button>
-      <button class="linkbtn" type="button" id="forgotBtn">Lupa PIN?</button>
+      <button class="btn primary" id="loginBtn" type="submit">Masuk</button>
     </form>
   </div>
 
   <div id="toast" class="toast" role="status"></div>
   <script>
-  /* Penanda error: tampil di layar kalau app.js gagal berjalan */
-  (function () {
-    function show(msg) {
-      var d = document.getElementById("errBar");
-      if (!d) {
-        d = document.createElement("div"); d.id = "errBar";
-        d.style.cssText = "position:fixed;z-index:99999;left:12px;right:12px;bottom:12px;background:#b3261e;color:#fff;padding:10px 14px;border-radius:8px;font:14px/1.4 system-ui,sans-serif";
-        document.body.appendChild(d);
-      }
-      d.textContent = msg;
-    }
-    window.addEventListener("error", function (e) {
-      if (e.filename && /app\.js/.test(e.filename)) show("Error di app.js baris " + e.lineno + ": " + e.message);
-    });
-    window.addEventListener("load", function () {
-      setTimeout(function () {
-        if (!window.__docutrackReady) show("app.js belum berjalan sempurna. Pastikan index.html, style.css, dan app.js semuanya versi terbaru, lalu tekan Ctrl+Shift+R.");
-      }, 400);
-    });
-  })();
+      /* Penanda error: tampil di layar kalau app.js gagal berjalan */
+      (function () {
+        function show(msg) {
+          var d = document.getElementById("errBar");
+          if (!d) {
+            d = document.createElement("div"); d.id = "errBar";
+            d.style.cssText = "position:fixed;z-index:99999;left:12px;right:12px;bottom:12px;background:#b3261e;color:#fff;padding:10px 14px;border-radius:8px;font:14px/1.4 system-ui,sans-serif";
+            document.body.appendChild(d);
+          }
+          d.textContent = msg;
+        }
+        window.addEventListener("error", function (e) {
+          if (e.filename && /app\.js/.test(e.filename)) show("Error di app.js baris " + e.lineno + ": " + e.message);
+        });
+        window.addEventListener("load", function () {
+          setTimeout(function () {
+            if (!window.__docutrackReady) show("app.js belum berjalan sempurna. Pastikan index.html, style.css, dan app.js semuanya versi terbaru, lalu tekan Ctrl+Shift+R.");
+          }, 400);
+        });
+      })();
   </script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
-  <script src="app.js?v=4"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
+  <script src="app.js?v=11"></script>
 </body>
+
 </html>
