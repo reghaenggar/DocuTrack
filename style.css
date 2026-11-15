@@ -935,3 +935,247 @@ body {
 #secRemove {
     margin-right: auto;
 }
+
+/* ===== Responsif (HP, tablet, desktop) ===== */
+html {
+    -webkit-text-size-adjust: 100%;
+}
+
+img, svg {
+    max-width: 100%;
+}
+
+.top-actions {
+    flex-wrap: wrap;
+    justify-content: flex-end;
+}
+
+@media (max-width: 720px) {
+    body {
+        font-size: 14.5px;
+    }
+
+    .top {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 10px;
+    }
+
+    .top-actions {
+        justify-content: flex-start;
+        gap: 6px;
+    }
+
+    .top-actions .btn {
+        flex: 1 1 auto;
+        padding: 8px 10px;
+        font-size: 13px;
+    }
+
+    #addBtn {
+        flex-basis: 100%;
+        order: -1;
+        padding: 11px;
+        font-size: 14.5px;
+    }
+
+    .company {
+        padding-bottom: 14px;
+    }
+
+    .co-name {
+        font-size: 17px;
+    }
+
+    .stat {
+        padding: 12px 14px;
+    }
+
+    .stat b {
+        font-size: 26px;
+    }
+
+    .card {
+        padding: 12px;
+    }
+
+    .card h3 {
+        font-size: 16.5px;
+    }
+
+    .card-actions {
+        flex-wrap: wrap;
+    }
+
+    .card-actions .proc {
+        flex: 1 1 100%;
+        margin-right: 0;
+    }
+
+    .card-actions .btn {
+        flex: 1 1 auto;
+    }
+
+    .dates {
+        flex-wrap: wrap;
+        gap: 2px 12px;
+    }
+
+    .row {
+        grid-template-columns: 1fr;
+    }
+
+    dialog {
+        padding: 16px;
+        width: 94vw;
+        max-height: 94vh;
+    }
+
+    .dlg-actions {
+        flex-wrap: wrap;
+    }
+
+    .dlg-actions .btn {
+        flex: 1 1 auto;
+    }
+
+    .cal-head h2 {
+        min-width: 0;
+        flex: 1 1 100%;
+        order: -1;
+        font-size: 18px;
+    }
+
+    .cal-head .meta {
+        margin-left: 0;
+        flex: 1 1 100%;
+    }
+
+    .lock-card {
+        padding: 22px 18px;
+    }
+}
+
+@media (max-width: 420px) {
+    .stats {
+        grid-template-columns: 1fr 1fr;
+    }
+
+    .cal-grid {
+        gap: 2px;
+    }
+
+    .day {
+        min-height: 54px;
+        padding: 2px;
+    }
+
+    .ev {
+        font-size: 10px;
+        padding: 1px 2px;
+    }
+
+    .badge {
+        font-size: 12px;
+    }
+}
+
+@media (min-width: 1200px) {
+    main {
+        max-width: 1060px;
+    }
+
+    .day {
+        min-height: 96px;
+    }
+}
+
+@media (max-width: 720px) {
+    .top-actions {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+    }
+
+    .top-actions .btn {
+        padding: 8px 4px;
+        font-size: 12.5px;
+        white-space: nowrap;
+    }
+
+    #addBtn {
+        grid-column: 1 / -1;
+    }
+}
+
+/* gradasi dipindah ke layer tetap agar mulus di iOS/Android saat di-scroll */
+body {
+    background: #0f3c58;
+    background-attachment: scroll;
+}
+
+.bg {
+    background: linear-gradient(135deg, #0b2140 0%, #0f3c58 55%, #15606f 100%);
+}
+
+.toolbar {
+    grid-template-columns: 1.4fr repeat(4, 1fr);
+}
+
+@media (min-width: 721px) and (max-width: 900px) {
+    .toolbar {
+        grid-template-columns: repeat(4, 1fr);
+    }
+
+    .toolbar input {
+        grid-column: 1 / -1;
+    }
+}
+
+@media (max-width: 720px) {
+    .toolbar {
+        grid-template-columns: 1fr 1fr;
+    }
+}
+
+/* ===== Login & pengguna (Supabase) ===== */
+.company {
+    flex-wrap: wrap;
+}
+
+.userbar {
+    margin-left: auto;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: #fff;
+    font-size: 13px;
+    font-weight: 600;
+}
+
+.userbar .btn.ghost {
+    color: #fff;
+    border-color: rgba(255, 255, 255, .35);
+}
+
+.lock-card input {
+    letter-spacing: normal;
+    font-size: 16px;
+    text-align: left;
+}
+
+.meta.owner {
+    font-size: 12px;
+}
+
+.proc:disabled {
+    opacity: .7;
+    cursor: not-allowed;
+}
+
+@media (max-width: 720px) {
+    .userbar {
+        margin-left: 0;
+        width: 100%;
+        justify-content: space-between;
+    }
+}
